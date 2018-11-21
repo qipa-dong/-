@@ -44,12 +44,23 @@ namespace 磁盘编辑工具
 			//写入磁盘
 		}
 
+		//打印log信息
+		private void Log(string data)
+		{
+			if (data == "")
+			{
+				textBox1.Text = "";
+			}
+
+			textBox1.Text += data;
+		}
+
 		private void Get_info()
 		{
 			long lsum = 0,ldr =0;
-			StringBuilder mStringBuilder = new StringBuilder();
+			string disk_log = "磁盘信息\r\n";
 			comboBox1.Items.Clear();
-			label6.Text = "";
+			Log("");
 			foreach (DriveInfo drive in DriveInfo.GetDrives())
 			{
 				lsum = drive.TotalSize / 1024 / 1024;//MB,磁盘总大小
@@ -65,17 +76,18 @@ namespace 磁盘编辑工具
 					//判断是否是固定磁盘  
 					if (drive.DriveType == DriveType.Fixed)
 					{
-						label6.Text += "固定磁盘：";
+						disk_log += "固定磁盘：";
 					}
 					else if (drive.DriveType == DriveType.Removable)
 					{
-						label6.Text += "移动磁盘：";
+						disk_log += "移动磁盘：";
 					}
 
-					label6.Text += drive.Name + ": 总空间=" + lsum.ToString("n") + " MB" + " 剩余空间= " + ldr.ToString("n") + " MB" + "\r\n";
+					disk_log += drive.Name + ": 总空间=" + lsum.ToString("n") + " MB" + " 剩余空间= " + ldr.ToString("n") + " MB" + "\r\n";
 				}
 			}
-			if(comboBox1.Items.Count > 0)
+			Log(disk_log);
+			if (comboBox1.Items.Count > 0)
 			{
 				comboBox1.SelectedIndex = 0;//设置默认值
 			}
