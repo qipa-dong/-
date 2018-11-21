@@ -1,20 +1,16 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
 namespace SDcard
 {
-    class SDUtils
+	class SDUtils
     {
         private const uint GENERIC_READ = 0x80000000;
         private const uint GENERIC_WRITE = 0x40000000;
         private const uint FILE_SHARE_READ = 0x00000001;
         private const uint FILE_SHARE_WRITE = 0x00000002;
         private const uint OPEN_EXISTING = 3;
-        [DllImport("kernel32.dll", SetLastError = true)]
-        private static extern SafeFileHandle CreateFileA(string lpFileName, uint dwDesiredAccess, uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
         private System.IO.FileStream _DriverStream;
         private long _SectorLength = 0;
         private SafeFileHandle _DriverHandle;
@@ -31,7 +27,7 @@ namespace SDcard
             try
             {
                 if (DriverName == null && DriverName.Trim().Length == 0) return;
-                _DriverHandle = CreateFileA("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+                _DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
                 _DriverStream = new System.IO.FileStream(_DriverHandle, System.IO.FileAccess.ReadWrite);
                 GetSectorCount();
             }
@@ -54,7 +50,7 @@ namespace SDcard
 			try
 			{
 				if (DriverName == null && DriverName.Trim().Length == 0) return false;
-				_DriverHandle = CreateFileA("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+				_DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
 				_DriverStream = new System.IO.FileStream(_DriverHandle, System.IO.FileAccess.ReadWrite);
 				GetSectorCount();
 				return true;
@@ -99,7 +95,7 @@ namespace SDcard
             return ReturnText.ToString();
         }
         /// <summary>
-        /// 获取扇区数量
+        /// 获取分区扇区数量
         /// </summary>
         public void GetSectorCount()
         {
@@ -150,4 +146,47 @@ namespace SDcard
             _DriverStream.Close();
         }
     }
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct DiskGeometry
+	{
+		public long Cylinders;
+		public int MediaType;
+		public int TracksPerCylinder;
+		public int SectorsPerTrack;
+		public int BytesPerSector;
+	}
+
+	internal static class NativeMethods
+	{
+		[DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+		public static extern SafeFileHandle CreateFile(
+			string fileName,
+			uint fileAccess,
+			uint fileShare,
+			IntPtr securityAttributes,
+			uint creationDisposition,
+			uint flags,
+			IntPtr template
+			);
+
+		[DllImport("Kernel32.dll", SetLastError = false, CharSet = CharSet.Auto)]
+		public static extern int DeviceIoControl(
+			SafeFileHandle device,
+			uint controlCode,
+			IntPtr inBuffer,
+			uint inBufferSize,
+			IntPtr outBuffer,
+			uint outBufferSize,
+			ref uint bytesReturned,
+			IntPtr overlapped
+			);
+
+		internal const uint FileAccessGenericRead = 0x80000000;
+		internal const uint FileShareWrite = 0x2;
+		internal const uint FileShareRead = 0x1;
+		internal const uint CreationDispositionOpenExisting = 0x3;
+		internal const uint IoCtlDiskGetDriveGeometry = 0x70000;
+	}
+
 }

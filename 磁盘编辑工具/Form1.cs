@@ -1,7 +1,8 @@
 ﻿using System;
-using System.Text;
 using System.Windows.Forms;
 using System.IO;
+using System.Management;
+
 using SDcard;
 namespace 磁盘编辑工具
 {
@@ -69,9 +70,9 @@ namespace 磁盘编辑工具
 				if(lsum <= 0x2000)
 				{
 					if (drive.IsReady)//磁盘已就绪
-						comboBox1.Items.Add(drive.Name + drive.VolumeLabel);
+						comboBox1.Items.Add(drive.Name.Substring(0, drive.Name.Length - 1) + drive.VolumeLabel);
 					else
-						comboBox1.Items.Add(drive.Name + "未知");
+						comboBox1.Items.Add(drive.Name.Substring(0, drive.Name.Length - 1) + "未知");
 
 					//判断是否是固定磁盘  
 					if (drive.DriveType == DriveType.Fixed)
@@ -86,6 +87,14 @@ namespace 磁盘编辑工具
 					disk_log += drive.Name + ": 总空间=" + lsum.ToString("n") + " MB" + " 剩余空间= " + ldr.ToString("n") + " MB" + "\r\n";
 				}
 			}
+
+			ManagementObjectSearcher mydisks = new ManagementObjectSearcher("SELECT * FROM Win32_DiskDrive");
+			foreach (ManagementObject mydisk in mydisks.Get())
+			{
+				//comboBox1.Items.Add(mydisk["Model"].ToString());
+				comboBox1.Items.Add(mydisk["DeviceID"].ToString());
+			}
+
 			Log(disk_log);
 			if (comboBox1.Items.Count > 0)
 			{
@@ -98,12 +107,13 @@ namespace 磁盘编辑工具
 			if (comboBox1.Items.Count <= 0)
 				return;
 
-			tergetDisk = comboBox1.Text.Substring(0, 2);
+			tergetDisk = (comboBox1.Text[0] >= 'A' && comboBox1.Text[0] <= 'Z') ? comboBox1.Text.Substring(0,2) : comboBox1.Text;
+
 			if (DiskOpen == false)//磁盘未打开
 			{
 				if (cipan.OpenDisk(tergetDisk))
 				{
-					button1.Text = "磁盘" + comboBox1.Text.Substring(0, 2);
+					button1.Text = "关闭";
 					button3.Enabled = true;
 					DiskOpen = true;
 				}
@@ -115,7 +125,7 @@ namespace 磁盘编辑工具
 			else
 			{
 				cipan.Close();
-				button1.Text = "打开磁盘";
+				button1.Text = "打开";
 				button3.Enabled = false;
 				DiskOpen = false;
 				Get_info();//关闭磁盘时刷新磁盘信息
