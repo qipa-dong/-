@@ -22,19 +22,6 @@ namespace SDcard
         /// 获取扇区信息
         /// </summary>
         /// <param name="DriverName">G:</param>
-        public SDUtils(string DriverName)
-        {
-            try
-            {
-                if (DriverName == null && DriverName.Trim().Length == 0) return;
-                _DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
-                _DriverStream = new System.IO.FileStream(_DriverHandle, System.IO.FileAccess.ReadWrite);
-                GetSectorCount();
-            }
-            catch (Exception)
-            {
-            }
-        }
 
 		public SDUtils()
 		{

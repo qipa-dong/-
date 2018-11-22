@@ -15,6 +15,7 @@ namespace 磁盘编辑工具
 			InitializeComponent();
 			//GetLogicalDrivers();
 			Get_info();
+			comboBox2.SelectedIndex = 0;
 		}
 
 		private void button2_Click(object sender, EventArgs e)
@@ -42,6 +43,7 @@ namespace 磁盘编辑工具
 		private void button3_Click(object sender, EventArgs e)
 		{
 			//写入磁盘
+
 		}
 
 		//打印log信息
@@ -132,7 +134,7 @@ namespace 磁盘编辑工具
 			}
 		}
 
-		private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+		private void ComboBox1_SelectedIndexChanged(object sender, EventArgs e)
 		{
 
 		}

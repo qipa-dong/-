@@ -50,7 +50,7 @@
 			this.comboBox1.Name = "comboBox1";
 			this.comboBox1.Size = new System.Drawing.Size(156, 20);
 			this.comboBox1.TabIndex = 0;
-			this.comboBox1.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
+			this.comboBox1.SelectedIndexChanged += new System.EventHandler(this.ComboBox1_SelectedIndexChanged);
 			// 
 			// button1
 			// 
@@ -110,6 +110,7 @@
 			// 
 			// button3
 			// 
+			this.button3.Enabled = false;
 			this.button3.Location = new System.Drawing.Point(251, 123);
 			this.button3.Name = "button3";
 			this.button3.Size = new System.Drawing.Size(68, 32);
@@ -141,7 +142,6 @@
 			this.comboBox2.Name = "comboBox2";
 			this.comboBox2.Size = new System.Drawing.Size(156, 20);
 			this.comboBox2.TabIndex = 19;
-			this.comboBox2.SelectedIndex = 0;
 			// 
 			// textBox1
 			// 
