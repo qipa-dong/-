@@ -47,8 +47,28 @@ namespace SDcard
 			{
 				return false;
 			}
-
 		}
+
+		///// <summary>
+		///// 打开文件
+		///// </summary>
+		///// <param name="OpenDisk">磁盘盘符</param>
+		///// <returns>成功返回1</returns>
+		//public bool OpenFile(string DriverName)
+		//{
+		//	try
+		//	{
+		//		if (DriverName == null && DriverName.Trim().Length == 0) return false;
+		//		_DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_ALWAYS, 0, IntPtr.Zero);
+		//		_DriverStream = new System.IO.FileStream(_DriverHandle, System.IO.FileAccess.ReadWrite);
+		//		GetSectorCount();
+		//		return true;
+		//	}
+		//	catch (Exception)
+		//	{
+		//		return false;
+		//	}
+		//}
 
 		int number1;
         /// <summary>
@@ -100,7 +120,6 @@ namespace SDcard
                 _SectorLength = BitConverter.ToInt64(new byte[] { ReturnByte[40], ReturnByte[41], ReturnByte[42], ReturnByte[43], ReturnByte[44], ReturnByte[45], ReturnByte[46], ReturnByte[47] }, 0);
             }
 			return _SectorLength;
-
 		}
 
 		/// <summary>
