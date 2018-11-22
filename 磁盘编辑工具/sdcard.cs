@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
@@ -84,9 +85,9 @@ namespace SDcard
         /// <summary>
         /// 获取分区扇区数量
         /// </summary>
-        public void GetSectorCount()
+        public long GetSectorCount()
         {
-            if (_DriverStream == null) return;
+            if (_DriverStream == null) return 0;
             _DriverStream.Position = 0;
             byte[] ReturnByte = new byte[512];
             _DriverStream.Read(ReturnByte, 0, 512); //获取第1扇区
@@ -98,7 +99,9 @@ namespace SDcard
             {
                 _SectorLength = BitConverter.ToInt64(new byte[] { ReturnByte[40], ReturnByte[41], ReturnByte[42], ReturnByte[43], ReturnByte[44], ReturnByte[45], ReturnByte[46], ReturnByte[47] }, 0);
             }
-        }
+			return _SectorLength;
+
+		}
 
 		/// <summary>
 		/// 获取磁盘信息
@@ -188,10 +191,28 @@ namespace SDcard
             _DriverStream.Position = SectorIndex * 512;
             _DriverStream.Write(SectorBytes, 0, 512); //写入扇区 
         }
-        /// <summary>
-        /// 关闭
-        /// </summary>
-        public void Close()
+
+		/// <summary>
+		/// 写入磁盘，将缓冲区的数据写入磁盘
+		/// </summary>
+		public void Refresh()
+		{
+			_DriverStream.Flush();
+		}
+
+		//获取文件长度
+		public long Filelen(string filename)
+		{
+			if (filename == "" || File.Exists(filename) == false)
+				return 0;
+			FileInfo fi = new FileInfo(filename);
+			return fi.Length;
+		}
+
+		/// <summary>
+		/// 关闭
+		/// </summary>
+		public void Close()
         {
             _DriverStream.Close();
 			//if (_DriverHandle.IsInvalid == false)
