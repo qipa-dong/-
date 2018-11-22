@@ -2,7 +2,6 @@
 using System.Windows.Forms;
 using System.IO;
 using System.Management;
-
 using SDcard;
 namespace 磁盘编辑工具
 {
@@ -108,7 +107,8 @@ namespace 磁盘编辑工具
 				return;
 
 			tergetDisk = (comboBox1.Text[0] >= 'A' && comboBox1.Text[0] <= 'Z') ? comboBox1.Text.Substring(0,2) : comboBox1.Text;
-
+			DiskGeometry geometry = new DiskGeometry { };
+			cipan.GetDiskinfo(tergetDisk, ref geometry);
 			if (DiskOpen == false)//磁盘未打开
 			{
 				if (cipan.OpenDisk(tergetDisk))

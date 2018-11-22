@@ -105,19 +105,82 @@ namespace SDcard
             _DriverStream.Read(ReturnByte, 0, 512); //获取第1扇区
             if (ReturnByte[0] == 0xEB && ReturnByte[1] == 0x58)          //DOS的好象都是32位
             {
-                _SectorLength = (long)BitConverter.ToInt32(new byte[] { ReturnByte[32], ReturnByte[33], ReturnByte[34], ReturnByte[35] }, 0);
+                _SectorLength = BitConverter.ToInt32(new byte[] { ReturnByte[32], ReturnByte[33], ReturnByte[34], ReturnByte[35] }, 0);
             }
             if (ReturnByte[0] == 0xEB && ReturnByte[1] == 0x52)          //NTFS好象是64位
             {
                 _SectorLength = BitConverter.ToInt64(new byte[] { ReturnByte[40], ReturnByte[41], ReturnByte[42], ReturnByte[43], ReturnByte[44], ReturnByte[45], ReturnByte[46], ReturnByte[47] }, 0);
             }
         }
-        /// <summary>
-        /// 读取扇区
-        /// </summary>
-        /// <param name="SectorIndex">扇区号</param>
-        /// <returns>如果扇区数大于分区信息的扇区数，则返回NULL</returns>
-        public byte[] ReadSector(long SectorIndex)
+
+		/// <summary>
+		/// 获取磁盘信息
+		/// </summary>
+		public bool GetDiskinfo(string DriverName, ref DiskGeometry geometry)
+		{
+			SafeFileHandle diskHandle =
+			NativeMethods.CreateFile(
+				//@"\\.\PhysicalDrive0",
+				"\\\\.\\" + DriverName,
+				NativeMethods.FileAccessGenericRead,
+				NativeMethods.FileShareWrite | NativeMethods.FileShareRead,
+				IntPtr.Zero,
+				NativeMethods.CreationDispositionOpenExisting,
+				0,
+				IntPtr.Zero
+			);
+
+			if (diskHandle.IsInvalid)
+			{
+				//ShowMessage("CreateFile failed with error: " + Marshal.GetLastWin32Error().ToString());
+				return false;
+			}
+
+			int geometrySize = Marshal.SizeOf(typeof(DiskGeometry));
+			//ShowMessage("geometry size " + geometrySize.ToString());
+
+			IntPtr geometryBlob = Marshal.AllocHGlobal(geometrySize);
+			uint numBytesRead = 0;
+
+
+			if (0 == NativeMethods.DeviceIoControl(
+					diskHandle,
+					NativeMethods.IoCtlDiskGetDriveGeometry,
+					IntPtr.Zero,
+					0,
+					geometryBlob,
+					(uint)geometrySize,
+					ref numBytesRead,
+					IntPtr.Zero
+					))
+			{
+				//ShowMessage("DeviceIoControl failed with error: " +Marshal.GetLastWin32Error().ToString());
+
+				return false;
+			}
+
+			//ShowMessage("Bytes read = " + numBytesRead.ToString());
+
+			geometry = (DiskGeometry)Marshal.PtrToStructure(geometryBlob, typeof(DiskGeometry));
+			Marshal.FreeHGlobal(geometryBlob);
+
+			long bytesPerCylinder = (long)geometry.TracksPerCylinder * geometry.SectorsPerTrack * geometry.BytesPerSector;
+			long totalSize = geometry.Cylinders * bytesPerCylinder;
+
+			if (diskHandle.IsInvalid == false)
+			{
+				NativeMethods.CloseHandle(diskHandle);
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// 读取扇区
+		/// </summary>
+		/// <param name="SectorIndex">扇区号</param>
+		/// <returns>如果扇区数大于分区信息的扇区数，则返回NULL</returns>
+		public byte[] ReadSector(long SectorIndex)
         {
             //if (SectorIndex > _SectorLength) 
             //   return null;
@@ -144,7 +207,11 @@ namespace SDcard
         public void Close()
         {
             _DriverStream.Close();
-        }
+			//if (_DriverHandle.IsInvalid == false)
+			//{
+			//	NativeMethods.CloseHandle(_DriverHandle);
+			//}
+		}
     }
 
 	[StructLayout(LayoutKind.Sequential)]
@@ -170,6 +237,9 @@ namespace SDcard
 			IntPtr template
 			);
 
+		[DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+		public static extern bool CloseHandle(SafeFileHandle hObject);
+
 		[DllImport("Kernel32.dll", SetLastError = false, CharSet = CharSet.Auto)]
 		public static extern int DeviceIoControl(
 			SafeFileHandle device,
@@ -187,6 +257,7 @@ namespace SDcard
 		internal const uint FileShareRead = 0x1;
 		internal const uint CreationDispositionOpenExisting = 0x3;
 		internal const uint IoCtlDiskGetDriveGeometry = 0x70000;
+		internal const short INVALID_HANDLE_VALUE = -1;
 	}
 
 }
