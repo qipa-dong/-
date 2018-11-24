@@ -92,13 +92,12 @@ namespace FileOperation
 		/// <param name="offset">开始读取的位置</param>
 		/// <param name="lenght">读取的长度</param>
 		/// <returns name="byte[]">读取到的数据</returns>
-		public byte[] BinRead(uint offset)
+		public bool BinRead(uint offset,uint size, ref byte[] data)
         {
 			//将文件信息读入流中
-			sr.Position = offset * 512;
-			byte[] ReturnByte = new byte[512];
-			sr.Read(ReturnByte, 0, 512); //获取扇区
-			return ReturnByte;
+			sr.Position = offset;
+			sr.Read(data, 0, 512); //获取扇区
+			return true;
 		}
 
 
@@ -109,17 +108,17 @@ namespace FileOperation
 		/// <param name="seek">文件偏移</param>
         /// <param name="content">文件内容</param>
         /// <returns></returns>
-        public bool Write(byte[] content, uint seek )
+        public bool Write(ref byte[] content, uint seek,int size)
         {
 			try
 			{
-				if (content.Length != 512)
+				if (content.Length < size)
 					return false;
 
-				sr.Position = seek * 512;
+				sr.Position = seek;
 
 				//设置偏移
-				sr.Write(content, 0, 512);
+				sr.Write(content, 0, size);
 
 			}
 			catch (Exception ex)

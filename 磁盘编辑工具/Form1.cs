@@ -9,7 +9,6 @@ namespace 磁盘编辑工具
 	public partial class Form1 : Form
 	{
 		private SDUtils cipan = new SDUtils();
-		private string tergetDisk = "";//目标磁盘
 		public Form1()
 		{
 			InitializeComponent();
@@ -60,7 +59,7 @@ namespace 磁盘编辑工具
 		private void button3_Click(object sender, EventArgs e)
 		{
 			//写入磁盘
-			byte[] WriteByte = new byte[512];
+			byte[] WriteByte = new byte[1024 * 1024];
 			FileHelper FileBin = new FileHelper();
 
 			for (uint i = 0; i < 512; i++)
@@ -92,8 +91,10 @@ namespace 磁盘编辑工具
 			}
 			/**********************************************************************************************************/
 			//获取文件长度
-			long file_size = cipan.Filelen(textBox4.Text);
-			long disk_size = cipan.GetSectorCount() * cipan.GetSectorLen();
+			uint file_size = cipan.Filelen(textBox4.Text);
+			uint disk_Sector_size = cipan.GetSectorLen();
+			uint disk_sector_num = cipan.GetSectorCount();
+			uint disk_size = disk_Sector_size * disk_sector_num;
 			if (file_size > disk_size )
 			{
 				MessageBox.Show("文件数据大于磁盘容量", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -117,10 +118,13 @@ namespace 磁盘编辑工具
 				return;
 			}
 			button3.Text = "写入中";
+			button3.Enabled = false;
 /**********************************************************************************************************/
-			
+
 			if (comboBox2.Text == "写入" || comboBox2.Text == "擦除")
 			{
+				uint complete_num = file_size / (1024 * 1024);
+				uint surplus = file_size % (1024 * 1024);
 				if (comboBox2.Text == "写入" && file_size <= 0)
 				{
 					MessageBox.Show(this, "文件无内容或不存在", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
@@ -128,52 +132,65 @@ namespace 磁盘编辑工具
 					return;
 				}
 
-				for (uint SurplusLen = 0; SurplusLen < file_size; SurplusLen += 512)
+				for (uint SurplusLen = 0; SurplusLen < complete_num; SurplusLen += 512)
 				{
 					if (comboBox2.Text == "写入")
 					{
 						//读取数据
-						WriteByte = FileBin.BinRead( SurplusLen /512);
+						FileBin.BinRead( SurplusLen * (1024 * 1024), 1024 * 1024, ref WriteByte);
 					}
 					//将数据写入流
-					cipan.WriteSector(WriteByte, SurplusLen / 512);
+					cipan.WriteSector(ref WriteByte, SurplusLen * (1024 * 1024), 1024 * 1024);
 
 					//将当前流中的数据写入磁盘
 					cipan.Refresh();
 
 					//更新进度条
-					progressBar1.Step = (int)(SurplusLen * 100 / file_size);
+					progressBar1.Step = (int)(SurplusLen * 100 / complete_num);
 					progressBar1.PerformStep();
+				}
+				if (surplus > 0)//存在不足1M的数据
+				{
+					FileBin.BinRead(complete_num * (1024 * 1024), surplus, ref WriteByte);
+					cipan.WriteSector(ref WriteByte, complete_num * (1024 * 1024), (int)surplus);
 				}
 				MessageBox.Show(this, "文件写入完成", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
 			}
 			else if (comboBox2.Text == "读取")
 			{
-				MessageBox.Show(disk_size.ToString());
+				uint complete_num = disk_size / (1024 * 1024);
+				uint surplus = disk_size % (1024 * 1024);
 				/*读取数据*/
-				for (uint SurplusLen = 0; SurplusLen < disk_size; SurplusLen ++)
+				for (uint SurplusLen = 0; SurplusLen < complete_num; SurplusLen ++)
 				{
 					Application.DoEvents();
 					//读取磁盘数据
-					WriteByte = cipan.ReadSector(SurplusLen);
+					cipan.ReadSector(SurplusLen * (1024 * 1024), 1024 * 1024,ref WriteByte);
 
 					//写入文件
-					FileBin.Write(WriteByte, SurplusLen);
+					FileBin.Write(ref WriteByte, SurplusLen * (1024 * 1024),1024 * 1024);
 
 					FileBin.Refresh();
 					//更新进度条
-					//if (SurplusLen * 100 / disk_size % 1 == 0)
-					//{
-					//	progressBar1.Step = (int)(SurplusLen * 100 / disk_size);
-					//	progressBar1.PerformStep();
-					//}
+					progressBar1.Value = (int)(SurplusLen * 100 / complete_num);
+					progressBar1.PerformStep();
+					//Log(SurplusLen.ToString() + "/" + disk_sector_num.ToString() + "\r\n");
 				}
-				MessageBox.Show(this, "磁盘读取完成", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
+				if (surplus > 0)//存在不足1M的数据
+				{
+					cipan.ReadSector(complete_num * (1024 * 1024), (int)surplus, ref WriteByte);
+					FileBin.Write(ref WriteByte, complete_num * (1024 * 1024), (int)surplus);
+				}
+				//更新进度条
+				progressBar1.Value = 100;
+				progressBar1.PerformStep();
 
+				cipan.Close();
+				FileBin.Close();
+				button3.Text = "写入";
+				button3.Enabled = true;
+				MessageBox.Show(this, "磁盘读取完成", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
 			}
-			button3.Text = "写入";
-			cipan.Close();
-			FileBin.Close();
 			Get_info();//关闭磁盘时刷新磁盘信息
 		}
 

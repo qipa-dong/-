@@ -16,20 +16,20 @@ namespace SDcard
 		private const uint OPEN_ALWAYS = 0x00000004;
 		private const uint OPEN_EXISTING = 3;
         private FileStream _DriverStream;
-        private long _SectorNum = 0;
-		private UInt32 _SectorLen = 0;
+        private uint _SectorNum = 0;
+		private uint _SectorLen = 0;
 		private SafeFileHandle _DriverHandle;
 
 		/// <summary>
 		/// 扇区数
 		/// </summary>
-		public long GetSectorNum()
+		public uint GetSectorNum()
 		{ return _SectorNum; }
 
 		/// <summary>
 		/// 扇区大小
 		/// </summary>
-		public long GetSectorLen()
+		public uint GetSectorLen()
 		{ return _SectorLen; }
 
 		/// <summary>
@@ -98,7 +98,7 @@ namespace SDcard
         /// <summary>
         /// 获取分区扇区数量
         /// </summary>
-        public long GetSectorCount()
+        public uint GetSectorCount()
         {
             if (_DriverStream == null) return 0;
             _DriverStream.Position = 0;
@@ -110,11 +110,11 @@ namespace SDcard
 				_SectorLen = (uint)BitConverter.ToInt16(new byte[] { ReturnByte[0x0B], ReturnByte[0x0C] }, 0);
 				if (ReturnByte[13] == 0x00 && ReturnByte[14] == 0x00)//小扇区数(Small Sector) 该分区上的扇区数，表示为16位(<65536)。对大于65536个扇区的分区来说，本字段的值为0，而使用大扇区数来取代它。
 				{
-					_SectorNum = BitConverter.ToInt16(new byte[] { ReturnByte[0x13], ReturnByte[0x14] }, 0);
+					_SectorNum = (uint)BitConverter.ToInt16(new byte[] { ReturnByte[0x13], ReturnByte[0x14] }, 0);
 				}
 				else
 				{
-					_SectorNum = BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
+					_SectorNum = (uint)BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
 				}
 			}
 			return _SectorNum;
@@ -187,26 +187,26 @@ namespace SDcard
 		/// </summary>
 		/// <param name="SectorIndex">扇区号</param>
 		/// <returns>如果扇区数大于分区信息的扇区数，则返回NULL</returns>
-		public byte[] ReadSector(long SectorIndex)
+		public bool ReadSector(long SectorIndex, int size, ref byte[] data)
         {
             //if (SectorIndex > _SectorLength) 
             //   return null;
-            _DriverStream.Position = SectorIndex * 512;
-            byte[] ReturnByte = new byte[512];
-            _DriverStream.Read(ReturnByte, 0, 512); //获取扇区
-            return ReturnByte;
+            _DriverStream.Position = SectorIndex;
+           // byte[] ReturnByte = new byte[512];
+            _DriverStream.Read(data, 0, size); //获取扇区
+            return true;
         }
         /// <summary>
         /// 向磁盘扇区写入数据
         /// </summary>
         /// <param name="SectorBytes">扇区长度512</param>
         /// <param name="SectorIndex">扇区位置</param>
-        public void WriteSector(byte[] SectorBytes, long SectorIndex)
+        public void WriteSector( ref byte[] SectorBytes, long SectorIndex, int size)
         {
-            if (SectorBytes.Length != 512) return;
-            if (SectorIndex > _SectorNum) return;
-            _DriverStream.Position = SectorIndex * 512;
-            _DriverStream.Write(SectorBytes, 0, 512); //写入扇区 
+            if (SectorBytes.Length < size) return;
+            if (SectorIndex > _SectorNum * _SectorLen) return;
+            _DriverStream.Position = SectorIndex ;
+            _DriverStream.Write(SectorBytes, 0, size); //写入扇区 
         }
 
 		/// <summary>
@@ -218,12 +218,12 @@ namespace SDcard
 		}
 
 		//获取文件长度
-		public long Filelen(string filename)
+		public uint Filelen(string filename)
 		{
 			if (filename == "" || File.Exists(filename) == false)
 				return 0;
 			FileInfo fi = new FileInfo(filename);
-			return fi.Length;
+			return (uint)fi.Length;
 		}
 
 		/// <summary>
