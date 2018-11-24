@@ -3,6 +3,7 @@ using System.Windows.Forms;
 using System.IO;
 using System.Management;
 using SDcard;
+using FileOperation;
 namespace 磁盘编辑工具
 {
 	public partial class Form1 : Form
@@ -60,7 +61,7 @@ namespace 磁盘编辑工具
 		{
 			//写入磁盘
 			byte[] WriteByte = new byte[512];
-			SDUtils FileBin = new SDUtils();
+			FileHelper FileBin = new FileHelper();
 
 			for (uint i = 0; i < 512; i++)
 			{
@@ -79,7 +80,7 @@ namespace 磁盘编辑工具
 			}
 
 			//打开文件
-			if (FileBin.OpenDisk(textBox4.Text))
+			if (FileBin.OpenFile(textBox4.Text))
 			{
 				button3.Enabled = true;
 			}
@@ -92,8 +93,8 @@ namespace 磁盘编辑工具
 			/**********************************************************************************************************/
 			//获取文件长度
 			long file_size = cipan.Filelen(textBox4.Text);
-			long disk_size = cipan.GetSectorCount();
-			if (file_size > disk_size)
+			long disk_size = cipan.GetSectorCount() * cipan.GetSectorLen();
+			if (file_size > disk_size )
 			{
 				MessageBox.Show("文件数据大于磁盘容量", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return;
@@ -132,7 +133,7 @@ namespace 磁盘编辑工具
 					if (comboBox2.Text == "写入")
 					{
 						//读取数据
-						WriteByte = FileBin.ReadSector( SurplusLen /512);
+						WriteByte = FileBin.BinRead( SurplusLen /512);
 					}
 					//将数据写入流
 					cipan.WriteSector(WriteByte, SurplusLen / 512);
@@ -148,24 +149,31 @@ namespace 磁盘编辑工具
 			}
 			else if (comboBox2.Text == "读取")
 			{
+				MessageBox.Show(disk_size.ToString());
 				/*读取数据*/
-				for (uint SurplusLen = 0; SurplusLen < disk_size; SurplusLen += 512)
+				for (uint SurplusLen = 0; SurplusLen < disk_size; SurplusLen ++)
 				{
+					Application.DoEvents();
 					//读取磁盘数据
-					WriteByte = cipan.ReadSector(SurplusLen / 512);
+					WriteByte = cipan.ReadSector(SurplusLen);
 
 					//写入文件
-					FileBin.WriteSector(WriteByte, SurplusLen / 512);
+					FileBin.Write(WriteByte, SurplusLen);
 
+					FileBin.Refresh();
 					//更新进度条
-					progressBar1.Step = (int)(SurplusLen * 100 / disk_size);
-					progressBar1.PerformStep();
+					//if (SurplusLen * 100 / disk_size % 1 == 0)
+					//{
+					//	progressBar1.Step = (int)(SurplusLen * 100 / disk_size);
+					//	progressBar1.PerformStep();
+					//}
 				}
 				MessageBox.Show(this, "磁盘读取完成", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
 
 			}
 			button3.Text = "写入";
 			cipan.Close();
+			FileBin.Close();
 			Get_info();//关闭磁盘时刷新磁盘信息
 		}
 

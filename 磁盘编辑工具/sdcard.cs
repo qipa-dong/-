@@ -3,6 +3,8 @@ using System.IO;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
+
 namespace SDcard
 {
 	class SDUtils
@@ -11,18 +13,29 @@ namespace SDcard
         private const uint GENERIC_WRITE = 0x40000000;
         private const uint FILE_SHARE_READ = 0x00000001;
         private const uint FILE_SHARE_WRITE = 0x00000002;
-        private const uint OPEN_EXISTING = 3;
-        private System.IO.FileStream _DriverStream;
-        private long _SectorLength = 0;
-        private SafeFileHandle _DriverHandle;
-        /// <summary>
-        /// 扇区数
-        /// </summary>
-        public long SectorLength { get { return _SectorLength; } }
-        /// <summary>
-        /// 获取扇区信息
-        /// </summary>
-        /// <param name="DriverName">G:</param>
+		private const uint OPEN_ALWAYS = 0x00000004;
+		private const uint OPEN_EXISTING = 3;
+        private FileStream _DriverStream;
+        private long _SectorNum = 0;
+		private UInt32 _SectorLen = 0;
+		private SafeFileHandle _DriverHandle;
+
+		/// <summary>
+		/// 扇区数
+		/// </summary>
+		public long GetSectorNum()
+		{ return _SectorNum; }
+
+		/// <summary>
+		/// 扇区大小
+		/// </summary>
+		public long GetSectorLen()
+		{ return _SectorLen; }
+
+		/// <summary>
+		/// 获取扇区信息
+		/// </summary>
+		/// <param name="DriverName">G:</param>
 
 		public SDUtils()
 		{
@@ -39,36 +52,16 @@ namespace SDcard
 			{
 				if (DriverName == null && DriverName.Trim().Length == 0) return false;
 				_DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
-				_DriverStream = new System.IO.FileStream(_DriverHandle, System.IO.FileAccess.ReadWrite);
+				_DriverStream = new FileStream(_DriverHandle, FileAccess.ReadWrite);
 				GetSectorCount();
 				return true;
 			}
-			catch (Exception)
+			catch (Exception ex)
 			{
+				MessageBox.Show(ex.Message);
 				return false;
 			}
 		}
-
-		///// <summary>
-		///// 打开文件
-		///// </summary>
-		///// <param name="OpenDisk">磁盘盘符</param>
-		///// <returns>成功返回1</returns>
-		//public bool OpenFile(string DriverName)
-		//{
-		//	try
-		//	{
-		//		if (DriverName == null && DriverName.Trim().Length == 0) return false;
-		//		_DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_ALWAYS, 0, IntPtr.Zero);
-		//		_DriverStream = new System.IO.FileStream(_DriverHandle, System.IO.FileAccess.ReadWrite);
-		//		GetSectorCount();
-		//		return true;
-		//	}
-		//	catch (Exception)
-		//	{
-		//		return false;
-		//	}
-		//}
 
 		int number1;
         /// <summary>
@@ -111,15 +104,20 @@ namespace SDcard
             _DriverStream.Position = 0;
             byte[] ReturnByte = new byte[512];
             _DriverStream.Read(ReturnByte, 0, 512); //获取第1扇区
-            if (ReturnByte[0] == 0xEB && ReturnByte[1] == 0x58)          //DOS的好象都是32位
-            {
-                _SectorLength = BitConverter.ToInt32(new byte[] { ReturnByte[32], ReturnByte[33], ReturnByte[34], ReturnByte[35] }, 0);
-            }
-            if (ReturnByte[0] == 0xEB && ReturnByte[1] == 0x52)          //NTFS好象是64位
-            {
-                _SectorLength = BitConverter.ToInt64(new byte[] { ReturnByte[40], ReturnByte[41], ReturnByte[42], ReturnByte[43], ReturnByte[44], ReturnByte[45], ReturnByte[46], ReturnByte[47] }, 0);
-            }
-			return _SectorLength;
+			if (ReturnByte[0x36] == 0x46 && ReturnByte[0x37] == 0x41 && ReturnByte[0x38] == 0x54 && ReturnByte[0x39] == 0x31 && ReturnByte[0x3A] == 0x36 
+				&& ReturnByte[0x3B] == 0x20 && ReturnByte[0x3C] == 0x20 && ReturnByte[0x3D] == 0x20)          //FAT16
+			{
+				_SectorLen = (uint)BitConverter.ToInt16(new byte[] { ReturnByte[0x0B], ReturnByte[0x0C] }, 0);
+				if (ReturnByte[13] == 0x00 && ReturnByte[14] == 0x00)//小扇区数(Small Sector) 该分区上的扇区数，表示为16位(<65536)。对大于65536个扇区的分区来说，本字段的值为0，而使用大扇区数来取代它。
+				{
+					_SectorNum = BitConverter.ToInt16(new byte[] { ReturnByte[0x13], ReturnByte[0x14] }, 0);
+				}
+				else
+				{
+					_SectorNum = BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
+				}
+			}
+			return _SectorNum;
 		}
 
 		/// <summary>
@@ -206,7 +204,7 @@ namespace SDcard
         public void WriteSector(byte[] SectorBytes, long SectorIndex)
         {
             if (SectorBytes.Length != 512) return;
-            if (SectorIndex > _SectorLength) return;
+            if (SectorIndex > _SectorNum) return;
             _DriverStream.Position = SectorIndex * 512;
             _DriverStream.Write(SectorBytes, 0, 512); //写入扇区 
         }

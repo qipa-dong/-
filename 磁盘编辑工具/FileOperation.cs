@@ -2,11 +2,13 @@
 using System;  
 using System.IO;
 using System.Text;
-namespace 文件操作类
+using System.Windows.Forms;
+namespace FileOperation
 {
     public class FileHelper
     {
-        public FileHelper()
+		private FileStream sr;
+		public FileHelper()
         {
             // TODO: Complete member initialization
         }
@@ -63,30 +65,41 @@ namespace 文件操作类
             return true;
         }
 
-        /// <summary>
-        /// 二进制读取文件
-        /// </summary>
-        /// <param name="filePath">文件路径</param>
-        /// <param name="offset">开始读取的位置</param>
-        /// <param name="lenght">读取的长度</param>
-        /// <returns name="byte[]">读取到的数据</returns>
-        public byte[] BinRead(string filePath,uint offset,uint lenght)
+		/// <summary>
+		/// 打开文件
+		/// </summary>
+		/// <param name="OpenDisk">磁盘盘符</param>
+		/// <returns>成功返回1</returns>
+		public bool OpenFile(string filePath)
+		{
+			try
+			{
+				if (filePath == null && filePath.Trim().Length == 0) return false;
+				sr = File.Create(filePath);
+				return true;
+			}
+			catch (Exception ex)
+			{
+				MessageBox.Show(ex.Message);
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// 二进制读取文件
+		/// </summary>
+		/// <param name="filePath">文件路径</param>
+		/// <param name="offset">开始读取的位置</param>
+		/// <param name="lenght">读取的长度</param>
+		/// <returns name="byte[]">读取到的数据</returns>
+		public byte[] BinRead(uint offset)
         {
-            byte[] data = new byte[512];
-            if (!Exists(filePath))
-            {
-                return null;
-            }
-            //将文件信息读入流中
-            using (FileStream fs = new FileStream(filePath, FileMode.Open))
-            {
-                fs.Position = offset;
-                fs.Read(data, 0, (int)lenght);
-                fs.Close();
-                fs.Dispose();
-                return data;
-            }
-        }
+			//将文件信息读入流中
+			sr.Position = offset * 512;
+			byte[] ReturnByte = new byte[512];
+			sr.Read(ReturnByte, 0, 512); //获取扇区
+			return ReturnByte;
+		}
 
 
         /// <summary>
@@ -96,44 +109,58 @@ namespace 文件操作类
 		/// <param name="seek">文件偏移</param>
         /// <param name="content">文件内容</param>
         /// <returns></returns>
-        public bool Write(string filePath, uint seek, byte[] content)
+        public bool Write(byte[] content, uint seek )
         {
 			try
 			{
 				if (content.Length != 512)
 					return false;
 
-				if (!File.Exists(filePath))
-				{
-					//创建文件  
-					FileStream fs = File.Create(filePath);
-				}
-
-				//打开文件
-				FileStream sr = File.Create(filePath);
+				sr.Position = seek * 512;
 
 				//设置偏移
-				sr.Write(content, (int)seek, 512);
+				sr.Write(content, 0, 512);
 
-				//同步并关闭文件
-				sr.Close();
-				sr.Dispose();
 			}
 			catch (Exception ex)
 			{
+				MessageBox.Show(ex.Message);
 				return false;
 			}
 			return true;
-        }
+
+		}
+
+		/// <summary>
+		/// 写入文件，将缓冲区的数据写入文件
+		/// </summary>
+		public void Refresh()
+		{
+			sr.Flush();
+		}
+
+		/// <summary>
+		/// 关闭
+		/// </summary>
+		/// <param name="filePath">文件路径</param>
+		/// <param name="seek">文件偏移</param>
+		/// <param name="content">文件内容</param>
+		/// <returns></returns>
+		public void Close()
+		{
+			//同步并关闭文件
+			sr.Close();
+			sr.Dispose();
+
+		}
 
 
-
-        /// <summary>
-        /// 删除文件
-        /// </summary>
-        /// <param name="filePath">文件的完整路径</param>
-        /// <returns></returns>
-        public static bool DeleteFile(string filePath)
+		/// <summary>
+		/// 删除文件
+		/// </summary>
+		/// <param name="filePath">文件的完整路径</param>
+		/// <returns></returns>
+		public static bool DeleteFile(string filePath)
         {
             if (Exists(filePath))
             {
@@ -178,7 +205,7 @@ namespace 文件操作类
         }
 
         //获取文件长度
-        public long filelen(string filename)
+        public long Filelen(string filename)
         {
             if (filename == "")
                 return 0;
