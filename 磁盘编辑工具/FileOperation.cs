@@ -75,7 +75,10 @@ namespace FileOperation
 			try
 			{
 				if (filePath == null && filePath.Trim().Length == 0) return false;
-				sr = File.Create(filePath);
+				if (!File.Exists(filePath))
+					sr = File.Create(filePath);
+				else
+					sr = File.Open(filePath, FileMode.Open);
 				return true;
 			}
 			catch (Exception ex)

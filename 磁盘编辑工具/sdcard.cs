@@ -104,7 +104,7 @@ namespace SDcard
             _DriverStream.Position = 0;
             byte[] ReturnByte = new byte[512];
             _DriverStream.Read(ReturnByte, 0, 512); //获取第1扇区
-			if (ReturnByte[0x36] == 0x46 && ReturnByte[0x37] == 0x41 && ReturnByte[0x38] == 0x54 && ReturnByte[0x39] == 0x31 && ReturnByte[0x3A] == 0x36 
+			if (ReturnByte[0x36] == 0x46 && ReturnByte[0x37] == 0x41 && ReturnByte[0x38] == 0x54 && ReturnByte[0x39] == 0x31 && ReturnByte[0x3A] == 0x36
 				&& ReturnByte[0x3B] == 0x20 && ReturnByte[0x3C] == 0x20 && ReturnByte[0x3D] == 0x20)          //FAT16
 			{
 				_SectorLen = (uint)BitConverter.ToInt16(new byte[] { ReturnByte[0x0B], ReturnByte[0x0C] }, 0);
@@ -116,6 +116,10 @@ namespace SDcard
 				{
 					_SectorNum = (uint)BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
 				}
+			}
+			else
+			{
+				MessageBox.Show("未知分区");
 			}
 			return _SectorNum;
 		}

@@ -34,7 +34,7 @@ namespace 磁盘编辑工具
 				}
 
 			}
-			else if (comboBox1.Text == "写入")
+			else if (comboBox2.Text == "写入")
 			{
 				//打开文件
 				OpenFileDialog fileDialog = new OpenFileDialog
@@ -106,9 +106,9 @@ namespace 磁盘编辑工具
 				return;
 			}
 
-			if (disk_size > 1024 * 1024 * 1024)
+			if (disk_size > 1024 * 1024 * 1024 || disk_size == 0)
 			{
-				MessageBox.Show("磁盘数据大于1G", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				MessageBox.Show("磁盘数据大小错误", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 				return;
 			}
 
