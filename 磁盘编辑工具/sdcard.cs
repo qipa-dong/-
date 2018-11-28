@@ -117,6 +117,11 @@ namespace SDcard
 					_SectorNum = (uint)BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
 				}
 			}
+			else if (ReturnByte[0x52] == 0x46 && ReturnByte[0x53] == 0x41 && ReturnByte[0x54] == 0x54 && ReturnByte[0x55] == 0x33 && ReturnByte[0x56] == 0x32
+					&& ReturnByte[0x57] == 0x20 && ReturnByte[0x58] == 0x20 && ReturnByte[0x59] == 0x20)//FAT32
+			{
+				_SectorNum = (uint)BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
+			}
 			else
 			{
 				MessageBox.Show("未知分区");
