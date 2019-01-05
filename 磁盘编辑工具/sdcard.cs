@@ -13,7 +13,6 @@ namespace SDcard
         private const uint GENERIC_WRITE = 0x40000000;
         private const uint FILE_SHARE_READ = 0x00000001;
         private const uint FILE_SHARE_WRITE = 0x00000002;
-		private const uint OPEN_ALWAYS = 0x00000004;
 		private const uint OPEN_EXISTING = 3;
         private FileStream _DriverStream;
         private uint _SectorNum = 0;

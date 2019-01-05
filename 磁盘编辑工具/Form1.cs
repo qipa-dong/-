@@ -17,16 +17,18 @@ namespace 磁盘编辑工具
 			comboBox2.SelectedIndex = 0;
 		}
 
-		private void button2_Click(object sender, EventArgs e)
+		private void Button2_Click(object sender, EventArgs e)
 		{
 			if (comboBox2.Text == "读取")
 			{
-				SaveFileDialog filesave = new SaveFileDialog();
-				filesave.Title = "新建文件";
-				filesave.Filter = "二进制文件（*.bin,*img）|*.bin;*img|所有文件(*.*)|*.*";
-				filesave.FilterIndex = 1;//设置默认文件类型显示顺序 
-				filesave.RestoreDirectory = true;//保存对话框是否记忆上次打开的目录 
-				filesave.FileName = "读出文件";//设置默认的文件名
+				SaveFileDialog filesave = new SaveFileDialog
+				{
+					Title = "新建文件",
+					Filter = "二进制文件（*.bin,*img）|*.bin;*img|所有文件(*.*)|*.*",
+					FilterIndex = 1,//设置默认文件类型显示顺序 
+					RestoreDirectory = true,//保存对话框是否记忆上次打开的目录 
+					FileName = "读出文件"//设置默认的文件名
+				};
 				if (filesave.ShowDialog() == DialogResult.OK)
 				{
 					string[] names = filesave.FileNames;
@@ -56,7 +58,7 @@ namespace 磁盘编辑工具
 			}
 		}
 
-		private void button3_Click(object sender, EventArgs e)
+		private void Button3_Click(object sender, EventArgs e)
 		{
 			//写入磁盘
 			byte[] WriteByte = new byte[1024 * 1024];
@@ -123,8 +125,8 @@ namespace 磁盘编辑工具
 
 			if (comboBox2.Text == "写入" || comboBox2.Text == "擦除")
 			{
-				uint complete_num = file_size / (1024 * 1024);
-				uint surplus = file_size % (1024 * 1024);
+				uint complete_num = file_size / 1024;
+				uint surplus = file_size % 1024 ;
 				if (comboBox2.Text == "写入" && file_size <= 0)
 				{
 					MessageBox.Show(this, "文件无内容或不存在", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
@@ -132,18 +134,18 @@ namespace 磁盘编辑工具
 					return;
 				}
 
-				for (uint SurplusLen = 0; SurplusLen < complete_num; SurplusLen += 512)
+				for (uint SurplusLen = 0; SurplusLen < complete_num; SurplusLen ++)
 				{
 					if (comboBox2.Text == "写入")
 					{
 						//读取数据
-						FileBin.BinRead( SurplusLen * (1024 * 1024), 1024 * 1024, ref WriteByte);
+						FileBin.BinRead( SurplusLen * 1024 , 1024, ref WriteByte);
 					}
 					//将数据写入流
-					cipan.WriteSector(ref WriteByte, SurplusLen * (1024 * 1024), 1024 * 1024);
+					cipan.WriteSector(ref WriteByte, SurplusLen * 1024, 1024);
 
 					//将当前流中的数据写入磁盘
-					cipan.Refresh();
+					//cipan.Refresh();
 
 					//更新进度条
 					progressBar1.Step = (int)(SurplusLen * 100 / complete_num);
@@ -151,8 +153,8 @@ namespace 磁盘编辑工具
 				}
 				if (surplus > 0)//存在不足1M的数据
 				{
-					FileBin.BinRead(complete_num * (1024 * 1024), surplus, ref WriteByte);
-					cipan.WriteSector(ref WriteByte, complete_num * (1024 * 1024), (int)surplus);
+					FileBin.BinRead(complete_num * 1024, surplus, ref WriteByte);
+					cipan.WriteSector(ref WriteByte, complete_num * 1024, (int)surplus);
 				}
 				MessageBox.Show(this, "文件写入完成", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
 			}
