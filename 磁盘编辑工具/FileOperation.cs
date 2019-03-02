@@ -95,11 +95,11 @@ namespace FileOperation
 		/// <param name="offset">开始读取的位置</param>
 		/// <param name="lenght">读取的长度</param>
 		/// <returns name="byte[]">读取到的数据</returns>
-		public bool BinRead(uint offset,uint size, ref byte[] data)
+		public bool BinRead(uint offset,int size, ref byte[] data)
         {
 			//将文件信息读入流中
 			sr.Position = offset;
-			sr.Read(data, 0, 512); //获取扇区
+			sr.Read(data, 0, size); //获取扇区
 			return true;
 		}
 

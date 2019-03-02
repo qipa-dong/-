@@ -13,6 +13,9 @@ namespace SDcard
         private const uint GENERIC_WRITE = 0x40000000;
         private const uint FILE_SHARE_READ = 0x00000001;
         private const uint FILE_SHARE_WRITE = 0x00000002;
+		private const uint FSCTL_LOCK_VOLUME = 0x090018;
+		private const uint FSCTL_UNLOCK_VOLUME = 0x090019;
+		private const uint FSCTL_DISMOUNT_VOLUME = 0x09001A;
 		private const uint OPEN_EXISTING = 3;
         private FileStream _DriverStream;
         private uint _SectorNum = 0;
@@ -50,9 +53,16 @@ namespace SDcard
 			try
 			{
 				if (DriverName == null && DriverName.Trim().Length == 0) return false;
-				_DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+				_DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), 
+					GENERIC_READ | GENERIC_WRITE, 
+					FILE_SHARE_READ | FILE_SHARE_WRITE, 
+					IntPtr.Zero, 
+					OPEN_EXISTING, 
+					0, 
+					IntPtr.Zero);
 				_DriverStream = new FileStream(_DriverHandle, FileAccess.ReadWrite);
 				GetSectorCount();
+				//GetDeviceID(_DriverHandle);
 				return true;
 			}
 			catch (Exception ex)
@@ -191,17 +201,94 @@ namespace SDcard
 		}
 
 		/// <summary>
+		/// 通过盘符获取磁盘id
+		/// </summary>
+		/// <param name="hVolume"></param>
+		/// <returns></returns>
+		private uint GetDeviceID(SafeFileHandle hVolume)
+		{
+			VOLUME_DISK_EXTENTS sd = new VOLUME_DISK_EXTENTS();
+			uint bytesreturned = 0;
+			int ret = 0;
+			int size = Marshal.SizeOf(sd);
+			IntPtr ptr = Marshal.AllocHGlobal(size);
+			ret = NativeMethods.DeviceIoControl(hVolume, NativeMethods.IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS, IntPtr.Zero, 0, ptr, (uint)size, ref bytesreturned, IntPtr.Zero);
+			if (0 == ret)
+			{
+				int err = Marshal.GetLastWin32Error();
+				string msg = new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()).Message;
+			}
+			else
+			{
+				Marshal.PtrToStructure(ptr, sd);
+			}
+			Marshal.FreeHGlobal(ptr);
+
+			return sd.Extents[0].DiskNumber;
+		}
+
+		// 将卷锁定
+		public int LockVolume()
+		{
+			uint dwOutBytes = 0;
+			int bResult;
+
+			// 用FSCTL_LOCK_VOLUME锁卷
+			bResult = NativeMethods.DeviceIoControl(_DriverHandle,  // 设备句柄
+			 FSCTL_LOCK_VOLUME,   // 锁卷
+			 IntPtr.Zero, 0,    // 不需要输入数据
+			 IntPtr.Zero, 0,    // 不需要输出数据
+			 ref dwOutBytes,    // 输出数据长度
+			 IntPtr.Zero);   // 用同步I/O
+
+			return bResult;
+		}
+
+		// 将卷解锁
+		public int UnlockVolume()
+		{
+			uint dwOutBytes = 0;
+			int bResult;
+
+			// 用FSCTL_UNLOCK_VOLUME开卷锁
+			bResult = NativeMethods.DeviceIoControl(_DriverHandle,  // 设备句柄
+			 FSCTL_UNLOCK_VOLUME,   // 开卷锁
+			 IntPtr.Zero, 0,    // 不需要输入数据
+			 IntPtr.Zero, 0,    // 不需要输出数据
+			 ref dwOutBytes,    // 输出数据长度
+			 IntPtr.Zero);   // 用同步I/O
+
+			return bResult;
+		}
+
+		// 将卷卸下
+		// 该操作使系统重新辨识磁盘，等效于重新插盘
+		public int DismountVolume()
+		{
+			uint dwOutBytes = 0;
+			int bResult;
+
+			// 用FSCTL_DISMOUNT_VOLUME卸卷
+			bResult = NativeMethods.DeviceIoControl(_DriverHandle,  // 设备句柄
+			 FSCTL_DISMOUNT_VOLUME,   // 卸卷
+			 IntPtr.Zero, 0,    // 不需要输入数据
+			 IntPtr.Zero, 0,    // 不需要输出数据
+			 ref dwOutBytes,    // 输出数据长度
+			 IntPtr.Zero);   // 用同步I/O
+
+			return bResult;
+		}
+
+		/// <summary>
 		/// 读取扇区
 		/// </summary>
 		/// <param name="SectorIndex">扇区号</param>
 		/// <returns>如果扇区数大于分区信息的扇区数，则返回NULL</returns>
 		public bool ReadSector(long SectorIndex, int size, ref byte[] data)
         {
-            //if (SectorIndex > _SectorLength) 
-            //   return null;
-            _DriverStream.Position = SectorIndex;
-           // byte[] ReturnByte = new byte[512];
-            _DriverStream.Read(data, 0, size); //获取扇区
+            //_DriverStream.Position = SectorIndex;
+			_DriverStream.Seek(SectorIndex, SeekOrigin.Begin);
+			_DriverStream.Read(data, 0, size); //获取扇区
             return true;
         }
         /// <summary>
@@ -213,8 +300,9 @@ namespace SDcard
         {
             if (SectorBytes.Length < size) return;
             if (SectorIndex > _SectorNum * _SectorLen) return;
-            _DriverStream.Position = SectorIndex ;
-            _DriverStream.Write(SectorBytes, 0, size); //写入扇区 
+            //_DriverStream.Position = SectorIndex ;
+			_DriverStream.Seek(SectorIndex, SeekOrigin.Begin);
+			_DriverStream.Write(SectorBytes, 0, size); //写入扇区 
         }
 
 		/// <summary>
@@ -257,6 +345,36 @@ namespace SDcard
 		public int BytesPerSector;
 	}
 
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct DISK_EXTENT
+	{
+
+		//
+		// Specifies the storage device number of
+		// the disk on which this extent resides.
+		//
+		public uint DiskNumber;
+
+		//
+		// Specifies the offset and length of this
+		// extent relative to the beginning of the
+		// disk.
+		//
+
+		public long StartingOffset;
+		public long ExtentLength;
+
+	}
+
+	[StructLayout(LayoutKind.Sequential)]
+	internal struct VOLUME_DISK_EXTENTS
+	{
+		public uint NumberOfDiskExtents;
+
+		[MarshalAs(UnmanagedType.ByValArray, SizeConst = 1, ArraySubType = UnmanagedType.Struct)]
+		public DISK_EXTENT[] Extents;
+	}
+
 	internal static class NativeMethods
 	{
 		[DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
@@ -289,6 +407,7 @@ namespace SDcard
 		internal const uint FileShareWrite = 0x2;
 		internal const uint FileShareRead = 0x1;
 		internal const uint CreationDispositionOpenExisting = 0x3;
+		internal const uint IOCTL_VOLUME_GET_VOLUME_DISK_EXTENTS = 0x56000000;
 		internal const uint IoCtlDiskGetDriveGeometry = 0x70000;
 		internal const short INVALID_HANDLE_VALUE = -1;
 	}
