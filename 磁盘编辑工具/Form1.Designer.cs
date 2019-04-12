@@ -38,6 +38,7 @@
 			this.label7 = new System.Windows.Forms.Label();
 			this.comboBox2 = new System.Windows.Forms.ComboBox();
 			this.textBox1 = new System.Windows.Forms.TextBox();
+			this.label2 = new System.Windows.Forms.Label();
 			this.SuspendLayout();
 			// 
 			// comboBox1
@@ -90,9 +91,9 @@
 			// 
 			// button2
 			// 
-			this.button2.Location = new System.Drawing.Point(265, 81);
+			this.button2.Location = new System.Drawing.Point(251, 81);
 			this.button2.Name = "button2";
-			this.button2.Size = new System.Drawing.Size(54, 23);
+			this.button2.Size = new System.Drawing.Size(68, 23);
 			this.button2.TabIndex = 12;
 			this.button2.Text = "打开";
 			this.button2.UseVisualStyleBackColor = true;
@@ -142,11 +143,22 @@
 			this.textBox1.Size = new System.Drawing.Size(307, 128);
 			this.textBox1.TabIndex = 20;
 			// 
+			// label2
+			// 
+			this.label2.AutoSize = true;
+			this.label2.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
+			this.label2.Location = new System.Drawing.Point(249, 17);
+			this.label2.Name = "label2";
+			this.label2.Size = new System.Drawing.Size(29, 12);
+			this.label2.TabIndex = 21;
+			this.label2.Text = "容量";
+			// 
 			// Form1
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.ClientSize = new System.Drawing.Size(332, 313);
+			this.Controls.Add(this.label2);
 			this.Controls.Add(this.textBox1);
 			this.Controls.Add(this.comboBox2);
 			this.Controls.Add(this.label7);
@@ -177,6 +189,7 @@
 		private System.Windows.Forms.Label label7;
 		private System.Windows.Forms.ComboBox comboBox2;
 		private System.Windows.Forms.TextBox textBox1;
+		private System.Windows.Forms.Label label2;
 	}
 }
 

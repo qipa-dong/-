@@ -105,7 +105,7 @@ namespace FileOperation
 
 
         /// <summary>
-        /// 写文件(512字节)
+        /// 写文件
         /// </summary>
         /// <param name="filePath">文件路径</param>
 		/// <param name="seek">文件偏移</param>

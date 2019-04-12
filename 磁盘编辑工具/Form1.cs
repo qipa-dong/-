@@ -9,6 +9,7 @@ namespace 磁盘编辑工具
 	public partial class Form1 : Form
 	{
 		private SDUtils cipan = new SDUtils();
+		private uint file_size = 0;
 		public Form1()
 		{
 			InitializeComponent();
@@ -19,6 +20,7 @@ namespace 磁盘编辑工具
 
 		private void Button2_Click(object sender, EventArgs e)
 		{
+			file_size = 0;
 			if (comboBox2.Text == "读取")
 			{
 				SaveFileDialog filesave = new SaveFileDialog
@@ -49,8 +51,10 @@ namespace 磁盘编辑工具
 				{
 					string[] names = fileDialog.FileNames;
 					textBox4.Text = names[0];//显示文件名
+					file_size = cipan.Filelen(textBox4.Text);
 				}
 			}
+			Log("文件大小为：" + file_size.ToString("N0") + "字节");
 		}
 
 		private void Button3_Click(object sender, EventArgs e)
@@ -58,76 +62,95 @@ namespace 磁盘编辑工具
 			//写入磁盘
 			byte[] WriteByte = new byte[1024 * 1024];
 			FileHelper FileBin = new FileHelper();
+			
 
 			for (uint i = 0; i < WriteByte.Length; i++)
 			{
 				WriteByte[i] = 0xFF;
 			}
-
+			/* Check ---------------------------------------------------------------------------------------*/
 			//打开磁盘
 			if (cipan.OpenDisk((comboBox1.Text[0] >= 'A' && comboBox1.Text[0] <= 'Z') ? comboBox1.Text.Substring(0, 2) : comboBox1.Text))
 			{
 				button3.Enabled = true;
+				Log("打开磁盘：" + comboBox1.Text.ToString());
 			}
 			else
 			{
-				MessageBox.Show(this, "打开磁盘失败", "错误信息", MessageBoxButtons.OK, MessageBoxIcon.Error);
+				Log("打开磁盘失败! " + comboBox1.Text);
+				return;
+			}
+			uint disk_Sector_size = cipan.GetSectorLen();
+			uint disk_sector_num = cipan.GetSectorNum();
+			uint disk_size = disk_Sector_size * disk_sector_num;
+			
+			if (disk_size > 1024 * 1024 * 1024 || disk_size == 0)
+			{
+				MessageBox.Show("磁盘数据大小错误", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+				cipan.Close();
 				return;
 			}
 
 			//打开文件
-			if (FileBin.OpenFile(textBox4.Text))
+			if (comboBox2.Text != "擦除")
 			{
-				button3.Enabled = true;
-			}
-			else
-			{
-				MessageBox.Show(this, "打开文件失败", "错误信息", MessageBoxButtons.OK, MessageBoxIcon.Error);
-				cipan.Close();
-				return;
-			}
-			/**********************************************************************************************************/
-			//获取文件长度
-			uint file_size = cipan.Filelen(textBox4.Text);
-			uint disk_Sector_size = cipan.GetSectorLen();
-			uint disk_sector_num = cipan.GetSectorCount();
-			uint disk_size = disk_Sector_size * disk_sector_num;
-			if (file_size > disk_size )
-			{
-				MessageBox.Show("文件数据大于磁盘容量", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-				return;
-			}
-			if(file_size > 1024 * 1024 *1024)
-			{
-				MessageBox.Show("文件数据大于1G", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-				return;
-			}
+				if (FileBin.OpenFile(textBox4.Text))
+				{
+					button3.Enabled = true;
+					Log("打开文件：" + textBox4.Text.ToString());
+				}
+				else
+				{
+					Log("打开文件失败! " + textBox4.Text);
+					cipan.Close();
+					return;
+				}
 
-			if (disk_size > 1024 * 1024 * 1024 || disk_size == 0)
-			{
-				MessageBox.Show("磁盘数据大小错误", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-				return;
-			}
+				if (file_size <= 0)
+				{
+					if (comboBox2.Text == "写入")
+					{
+						MessageBox.Show(this, "文件无内容或不存在", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
+						FileBin.Close();
+						cipan.Close();
+						return;
+					}
+				}
+				else if(file_size > 1024 * 1024 *1024)
+				{
+					MessageBox.Show("文件数据大于1G", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					FileBin.Close();
+					cipan.Close();
+					return;
+				}
 
+				if (file_size > disk_size )
+				{
+					MessageBox.Show("文件数据大于磁盘容量", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+					FileBin.Close();
+					cipan.Close();
+					return;
+				}
+				
+			}
+			/* Confirm -----------------------------------------------------------------------------------------------*/
 			if (MessageBox.Show(this, "确定要执行操作？此操作无法撤销！", "提示信息：", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
 			{
 				button3.Text = "写入";
+				cipan.Close();
+				FileBin.Close();
 				return;
 			}
+
+			/**********************************************************************************************************/
 			button3.Text = "写入中";
 			button3.Enabled = false;
-/**********************************************************************************************************/
+			Log(comboBox2.Text.ToString() + "中........");
 
 			if (comboBox2.Text == "写入" || comboBox2.Text == "擦除")
 			{
 				uint complete_num = file_size / (uint)WriteByte.Length;
 				uint surplus = file_size % (uint)WriteByte.Length;
-				if (comboBox2.Text == "写入" && file_size <= 0)
-				{
-					MessageBox.Show(this, "文件无内容或不存在", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
-					button3.Text = "执行";
-					return;
-				}
 
 				cipan.LockVolume();
 				for (uint SurplusLen = 0; SurplusLen < complete_num; SurplusLen ++)
@@ -154,12 +177,12 @@ namespace 磁盘编辑工具
 				cipan.DismountVolume();
 				cipan.UnlockVolume();
 				cipan.Close();
-				FileBin.Close();
-
+				if (comboBox2.Text == "擦除")
+					FileBin.Close();
 				progressBar1.Value = 100;
-				button3.Text = "写入";
+				button3.Text = "执行";
 				button3.Enabled = true;
-				MessageBox.Show(this, "文件写入完成", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
+				Log("文件写入完成!");
 			}
 			else if (comboBox2.Text == "读取")
 			{
@@ -192,9 +215,9 @@ namespace 磁盘编辑工具
 				cipan.UnlockVolume();
 				cipan.Close();
 				FileBin.Close();
-				button3.Text = "写入";
+				button3.Text = "执行";
 				button3.Enabled = true;
-				MessageBox.Show(this, "磁盘读取完成", "提示信息", MessageBoxButtons.OK, MessageBoxIcon.Question);
+				Log("磁盘读取完成!");
 			}
 			//Get_info();//关闭磁盘时刷新磁盘信息
 		}
@@ -206,17 +229,20 @@ namespace 磁盘编辑工具
 			{
 				textBox1.Text = "";
 			}
-
-			textBox1.Text += data;
+			else
+			{
+				textBox1.Text += data + "\r\n";
+			}
 		}
 
 		//获取磁盘信息
 		private void Get_info()
 		{
 			long lsum = 0,ldr =0;
-			string disk_log = "磁盘信息\r\n";
-			comboBox1.Items.Clear();
 			Log("");
+			Log("磁盘信息");
+			comboBox1.Items.Clear();
+			
 			foreach (DriveInfo drive in DriveInfo.GetDrives())
 			{
 				lsum = drive.TotalSize / 1024 / 1024;//MB,磁盘总大小
@@ -232,14 +258,12 @@ namespace 磁盘编辑工具
 					//判断是否是固定磁盘  
 					if (drive.DriveType == DriveType.Fixed)
 					{
-						disk_log += "固定磁盘：";
+						Log("固定磁盘：" + drive.Name + ": 总空间=" + lsum.ToString("n") + " MB" + " 剩余空间= " + ldr.ToString("n") + " MB");
 					}
 					else if (drive.DriveType == DriveType.Removable)
 					{
-						disk_log += "移动磁盘：";
+						Log("移动磁盘：" + drive.Name + ": 总空间=" + lsum.ToString("n") + " MB" + " 剩余空间= " + ldr.ToString("n") + " MB");
 					}
-
-					disk_log += drive.Name + ": 总空间=" + lsum.ToString("n") + " MB" + " 剩余空间= " + ldr.ToString("n") + " MB" + "\r\n";
 				}
 			}
 
@@ -249,7 +273,6 @@ namespace 磁盘编辑工具
 				comboBox1.Items.Add(mydisk["DeviceID"].ToString());
 			}
 
-			Log(disk_log);
 			if (comboBox1.Items.Count > 0)
 			{
 				comboBox1.SelectedIndex = 0;//设置默认值
@@ -258,7 +281,37 @@ namespace 磁盘编辑工具
 
 		private void ComboBox1_SelectedIndexChanged(object sender, EventArgs e)
 		{
+			long disk_size = 0;
+			//打开磁盘
+			if (cipan.OpenDisk((comboBox1.Text[0] >= 'A' && comboBox1.Text[0] <= 'Z') ? comboBox1.Text.Substring(0, 2) : comboBox1.Text))
+			{
+				button3.Enabled = true;
+			}
+			else
+			{
+				Log("打开磁盘失败! " + comboBox1.Text);
+				return;
+			}
 
+			cipan.Close();
+			
+			disk_size = cipan.GetSectorLen() * (long)cipan.GetSectorNum();
+			if (disk_size / 1024 / 1024 > 0)
+			{
+				label2.Text = (disk_size / 1024).ToString("N0") + " KB";
+			}
+			else if (disk_size / 1024 > 0)
+			{
+				label2.Text = disk_size.ToString("N0") + " B";
+			}
+			else if (disk_size > 0)
+			{
+				label2.Text = disk_size.ToString() + " B";
+			}
+			else
+			{
+				label2.Text = "未知";
+			}
 		}
 
 	}

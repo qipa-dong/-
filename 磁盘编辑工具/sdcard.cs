@@ -26,13 +26,17 @@ namespace SDcard
 		/// 扇区数
 		/// </summary>
 		public uint GetSectorNum()
-		{ return _SectorNum; }
+		{
+			return _SectorNum;
+		}
 
 		/// <summary>
 		/// 扇区大小
 		/// </summary>
 		public uint GetSectorLen()
-		{ return _SectorLen; }
+		{
+			return _SectorLen;
+		}
 
 		/// <summary>
 		/// 获取扇区信息
@@ -52,7 +56,9 @@ namespace SDcard
 		{
 			try
 			{
-				if (DriverName == null && DriverName.Trim().Length == 0) return false;
+				if (DriverName == null && DriverName.Trim().Length == 0)
+					return false;
+
 				_DriverHandle = NativeMethods.CreateFile("\\\\.\\" + DriverName.Trim(), 
 					GENERIC_READ | GENERIC_WRITE, 
 					FILE_SHARE_READ | FILE_SHARE_WRITE, 
@@ -60,6 +66,8 @@ namespace SDcard
 					OPEN_EXISTING, 
 					0, 
 					IntPtr.Zero);
+				if (_DriverHandle.IsInvalid == true)
+					return false;
 				_DriverStream = new FileStream(_DriverHandle, FileAccess.ReadWrite);
 				GetSectorCount();
 				//GetDeviceID(_DriverHandle);
@@ -104,17 +112,24 @@ namespace SDcard
             }
             return ReturnText.ToString();
         }
-        /// <summary>
-        /// 获取分区扇区数量
-        /// </summary>
-        public uint GetSectorCount()
+
+		/// <summary>
+		/// 获取分区扇区数量
+		/// </summary>
+		public uint GetSectorCount()
         {
-            if (_DriverStream == null) return 0;
+            if (_DriverStream == null)
+				return 0;
             _DriverStream.Position = 0;
+
             byte[] ReturnByte = new byte[512];
-            _DriverStream.Read(ReturnByte, 0, 512); //获取第1扇区
-			if (ReturnByte[0x36] == 0x46 && ReturnByte[0x37] == 0x41 && ReturnByte[0x38] == 0x54 && ReturnByte[0x39] == 0x31 && ReturnByte[0x3A] == 0x36
-				&& ReturnByte[0x3B] == 0x20 && ReturnByte[0x3C] == 0x20 && ReturnByte[0x3D] == 0x20)          //FAT16
+			_DriverStream.Read(ReturnByte, 0, 512); //获取第1扇区
+
+			if (Encoding.ASCII.GetString(ReturnByte, 0x36, 8).CompareTo("FAT32   ") == 0)
+			{
+				_SectorNum = (uint)BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
+			}
+			else if (Encoding.ASCII.GetString(ReturnByte, 0x36, 8).CompareTo("FAT16   ") == 0)
 			{
 				_SectorLen = (uint)BitConverter.ToInt16(new byte[] { ReturnByte[0x0B], ReturnByte[0x0C] }, 0);
 				if (ReturnByte[13] == 0x00 && ReturnByte[14] == 0x00)//小扇区数(Small Sector) 该分区上的扇区数，表示为16位(<65536)。对大于65536个扇区的分区来说，本字段的值为0，而使用大扇区数来取代它。
@@ -125,17 +140,28 @@ namespace SDcard
 				{
 					_SectorNum = (uint)BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
 				}
-			}
-			else if (ReturnByte[0x52] == 0x46 && ReturnByte[0x53] == 0x41 && ReturnByte[0x54] == 0x54 && ReturnByte[0x55] == 0x33 && ReturnByte[0x56] == 0x32
-					&& ReturnByte[0x57] == 0x20 && ReturnByte[0x58] == 0x20 && ReturnByte[0x59] == 0x20)//FAT32
-			{
-				_SectorNum = (uint)BitConverter.ToInt32(new byte[] { ReturnByte[0x20], ReturnByte[0x21], ReturnByte[0x22], ReturnByte[0x23] }, 0);
+				//GetDeviceID(_DriverHandle);
 			}
 			else
 			{
-				MessageBox.Show("未知分区");
+				DiskGeometry geometry = new DiskGeometry { };
+				if (GetDiskinfo(_DriverHandle, ref geometry) == true)
+				{
+					_SectorNum = (uint)(geometry.Cylinders * geometry.TracksPerCylinder * geometry.SectorsPerTrack);
+				}
+				else
+				{
+					_SectorNum = 0;
+				}
 			}
+
 			return _SectorNum;
+		}
+
+		public uint GetSectorCount(string DriverName)
+		{
+			DriveInfo drive = new DriveInfo(DriverName);
+			return (uint)drive.TotalSize;
 		}
 
 		/// <summary>
@@ -200,8 +226,43 @@ namespace SDcard
 			return true;
 		}
 
+		public bool GetDiskinfo(SafeFileHandle hVolum, ref DiskGeometry geometry)
+		{
+			if (hVolum.IsInvalid)
+			{
+				return false;
+			}
+			int geometrySize = Marshal.SizeOf(typeof(DiskGeometry));
+
+			IntPtr geometryBlob = Marshal.AllocHGlobal(geometrySize);
+			uint numBytesRead = 0;
+
+			if (0 == NativeMethods.DeviceIoControl(
+					hVolum,
+					NativeMethods.IoCtlDiskGetDriveGeometry,
+					IntPtr.Zero,
+					0,
+					geometryBlob,
+					(uint)geometrySize,
+					ref numBytesRead,
+					IntPtr.Zero
+					))
+			{
+				//ShowMessage("DeviceIoControl failed with error: " +Marshal.GetLastWin32Error().ToString());
+				return false;
+			}
+
+			geometry = (DiskGeometry)Marshal.PtrToStructure(geometryBlob, typeof(DiskGeometry));
+			Marshal.FreeHGlobal(geometryBlob);
+
+			long bytesPerCylinder = (long)geometry.TracksPerCylinder * geometry.SectorsPerTrack * geometry.BytesPerSector;
+			long totalSize = geometry.Cylinders * bytesPerCylinder;
+
+			return true;
+		}
+
 		/// <summary>
-		/// 通过盘符获取磁盘id
+		/// 通过盘符获取磁盘id(获取物理磁盘号)
 		/// </summary>
 		/// <param name="hVolume"></param>
 		/// <returns></returns>
@@ -338,11 +399,11 @@ namespace SDcard
 	[StructLayout(LayoutKind.Sequential)]
 	internal struct DiskGeometry
 	{
-		public long Cylinders;
-		public int MediaType;
-		public int TracksPerCylinder;
-		public int SectorsPerTrack;
-		public int BytesPerSector;
+		public long Cylinders;			//柱面
+		public int MediaType;			//媒体类型
+		public int TracksPerCylinder;   //每个柱面的磁道
+		public int SectorsPerTrack;		//每个磁道的扇区
+		public int BytesPerSector;      //每个扇区的字节数
 	}
 
 	[StructLayout(LayoutKind.Sequential)]
