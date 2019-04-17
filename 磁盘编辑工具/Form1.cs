@@ -2,6 +2,7 @@
 using System.Windows.Forms;
 using System.IO;
 using System.Management;
+using System.Security.Principal;
 using SDcard;
 using FileOperation;
 namespace 磁盘编辑工具
@@ -10,12 +11,22 @@ namespace 磁盘编辑工具
 	{
 		private SDUtils cipan = new SDUtils();
 		private uint file_size = 0;
+		private bool Identity = false;//获取当前是否为管理员权限
 		public Form1()
 		{
 			InitializeComponent();
 			//GetLogicalDrivers();
 			Get_info();
 			comboBox2.SelectedIndex = 0;
+			Identity = IsAdministrator();
+		}
+
+		//获取当前是否为管理员权限打开
+		public bool IsAdministrator()
+		{
+			WindowsIdentity current = WindowsIdentity.GetCurrent();
+			WindowsPrincipal windowsPrincipal = new WindowsPrincipal(current);
+			return windowsPrincipal.IsInRole(WindowsBuiltInRole.Administrator);
 		}
 
 		private void Button2_Click(object sender, EventArgs e)
@@ -116,7 +127,7 @@ namespace 磁盘编辑工具
 						return;
 					}
 				}
-				else if(file_size > 1024 * 1024 *1024)
+				else if (file_size > 1024 * 1024 * 1024)
 				{
 					MessageBox.Show("文件数据大于1G", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 					FileBin.Close();
@@ -124,14 +135,18 @@ namespace 磁盘编辑工具
 					return;
 				}
 
-				if (file_size > disk_size )
+				if (file_size > disk_size)
 				{
 					MessageBox.Show("文件数据大于磁盘容量", "警告", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 					FileBin.Close();
 					cipan.Close();
 					return;
 				}
-				
+
+			}
+			else
+			{
+				file_size = disk_size;
 			}
 			/* Confirm -----------------------------------------------------------------------------------------------*/
 			if (MessageBox.Show(this, "确定要执行操作？此操作无法撤销！", "提示信息：", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
@@ -177,12 +192,10 @@ namespace 磁盘编辑工具
 				cipan.DismountVolume();
 				cipan.UnlockVolume();
 				cipan.Close();
-				if (comboBox2.Text == "擦除")
-					FileBin.Close();
 				progressBar1.Value = 100;
 				button3.Text = "执行";
 				button3.Enabled = true;
-				Log("文件写入完成!");
+				Log("文件" + comboBox2.Text.ToString() + "完成!");
 			}
 			else if (comboBox2.Text == "读取")
 			{
